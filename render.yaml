@@ -1,0 +1,29 @@
+
+# Configuração para deploy no Render
+services:
+  - type: web
+    name: csi-kanban-app
+    runtime: node
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start
+    plan: free
+    env:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: csi-kanban-db
+          property: connectionString
+    buildFilter:
+      paths:
+        - package.json
+        - yarn.lock
+        - app/**/*
+        - prisma/**/*
+        - scripts/**/*
+
+databases:
+  - name: csi-kanban-db
+    databaseName: csi_kanban_production
+    user: csi_kanban_user
+    plan: free

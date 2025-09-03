@@ -1,0 +1,135 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+  --csi-blue: 34, 139, 204; /* #228BCC */
+  --csi-blue-dark: 23, 104, 153; /* #176899 */
+  --csi-green: 34, 197, 94; /* #22C55E */
+  --csi-yellow: 234, 179, 8; /* #EAB308 */
+  --csi-red: 239, 68, 68; /* #EF4444 */
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Custom CSI Styles */
+.bg-csi-blue {
+  background-color: rgb(var(--csi-blue));
+}
+
+.bg-csi-blue-dark {
+  background-color: rgb(var(--csi-blue-dark));
+}
+
+.bg-csi-green {
+  background-color: rgb(var(--csi-green));
+}
+
+.bg-csi-yellow {
+  background-color: rgb(var(--csi-yellow));
+}
+
+.bg-csi-red {
+  background-color: rgb(var(--csi-red));
+}
+
+.text-csi-blue {
+  color: rgb(var(--csi-blue));
+}
+
+.text-csi-blue-dark {
+  color: rgb(var(--csi-blue-dark));
+}
+
+.border-csi-blue {
+  border-color: rgb(var(--csi-blue));
+}
+
+/* Classification colors */
+.classification-verde {
+  @apply bg-csi-green text-white;
+}
+
+.classification-amarelo {
+  @apply bg-csi-yellow text-black;
+}
+
+.classification-vermelho {
+  @apply bg-csi-red text-white;
+}
+
+/* Kanban column styles */
+.kanban-column {
+  @apply bg-gray-50 rounded-lg p-4 shadow-sm;
+}
+
+.kanban-card {
+  @apply bg-white rounded-md p-3 shadow-sm border border-gray-200 cursor-pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.kanban-card:hover {
+  @apply shadow-md transform scale-[1.02];
+}
+
+/* Animation for counting numbers */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.count-animation {
+  animation: countUp 0.5s ease-out;
+}
+
+/* Parallax effect */
+.parallax {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 203 89% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 203 89% 53%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
