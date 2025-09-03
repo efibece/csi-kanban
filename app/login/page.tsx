@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState } from 'react'
@@ -25,22 +24,70 @@ export default function LoginPage() {
     setIsLoading(true)
     setError('')
 
+    console.log('Attempting login for:', email)
+
     try {
       const result = await signIn('credentials', {
         email,
         password,
-        redirect: false,
+        redirect: false, // Importante: não redirecionar automaticamente
+        callbackUrl: '/profile' // URL de destino após login
       })
 
+      console.log('SignIn result:', result)
+
       if (result?.error) {
+        console.error('Login error:', result.error)
         setError('Credenciais inválidas')
-      } else {
+        toast.error('Credenciais inválidas')
+      } else if (result?.ok) {
+        console.log('Login successful, checking session...')
         toast.success('Login realizado com sucesso!')
-        router.push('/profile')
+        
+        // Aguardar um pouco para garantir que a sessão seja estabelecida
+        setTimeout(async () => {
+          try {
+            // Verificar se a sessão foi criada
+            const session = await getSession()
+            console.log('Session after login:', session)
+            
+            if (session?.user) {
+              console.log('Session confirmed, redirecting to profile...')
+              // Múltiplas estratégias de redirecionamento para garantir que funcione
+              
+              // Estratégia 1: router.push
+              router.push('/profile')
+              
+              // Estratégia 2: window.location como fallback (após delay)
+              setTimeout(() => {
+                if (window.location.pathname === '/login') {
+                  console.log('Router.push failed, using window.location')
+                  window.location.href = '/profile'
+                }
+              }, 1500)
+              
+            } else {
+              console.error('Session not created after login')
+              setError('Erro ao criar sessão. Tente novamente.')
+              setIsLoading(false)
+            }
+          } catch (sessionError) {
+            console.error('Error checking session:', sessionError)
+            // Fallback: redirecionar mesmo sem verificar sessão
+            console.log('Session check failed, redirecting anyway...')
+            window.location.href = '/profile'
+          }
+        }, 500) // Aguardar 500ms para sessão ser estabelecida
+        
+      } else {
+        console.error('Unexpected login result:', result)
+        setError('Erro inesperado no login')
+        setIsLoading(false)
       }
     } catch (error) {
+      console.error('Login exception:', error)
       setError('Erro interno do servidor')
-    } finally {
+      toast.error('Erro interno do servidor')
       setIsLoading(false)
     }
   }
@@ -75,6 +122,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={isLoading}
                   className="focus:border-csi-blue focus:ring-csi-blue"
                 />
               </div>
@@ -89,6 +137,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={isLoading}
                   className="focus:border-csi-blue focus:ring-csi-blue"
                 />
               </div>
