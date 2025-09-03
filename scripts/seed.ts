@@ -1,4 +1,3 @@
-
 import { PrismaClient, ClaimType, ClaimClassification, ClaimColumn, DocumentItem, DocumentStatus, EventChannel, EventDirection } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
@@ -13,7 +12,12 @@ async function main() {
     
     const regulador = await prisma.user.upsert({
       where: { email: 'regulador@csi.local' },
-      update: {},
+      update: {
+        name: 'Regulador CSI',
+        password: hashedPassword,
+        isSupervisor: false,
+        isActive: true,
+      },
       create: {
         email: 'regulador@csi.local',
         name: 'Regulador CSI',
@@ -25,7 +29,12 @@ async function main() {
 
     const supervisor = await prisma.user.upsert({
       where: { email: 'supervisor@csi.local' },
-      update: {},
+      update: {
+        name: 'Supervisor CSI',
+        password: hashedPassword,
+        isSupervisor: true,
+        isActive: true,
+      },
       create: {
         email: 'supervisor@csi.local',
         name: 'Supervisor CSI',
@@ -37,9 +46,11 @@ async function main() {
 
     console.log('👥 Users created')
 
-    // Create insureds with more complete data
-    const segurado1 = await prisma.insured.create({
-      data: {
+    // Create insureds with more complete data using UPSERT
+    const segurado1 = await prisma.insured.upsert({
+      where: { email: 'joao.silva@email.com' },
+      update: {},
+      create: {
         name: 'João Silva Santos',
         phone: '5511987654321',
         email: 'joao.silva@email.com',
@@ -52,8 +63,10 @@ async function main() {
       },
     })
 
-    const segurado2 = await prisma.insured.create({
-      data: {
+    const segurado2 = await prisma.insured.upsert({
+      where: { email: 'maria.oliveira@email.com' },
+      update: {},
+      create: {
         name: 'Maria Oliveira Costa',
         phone: '5511876543210',
         email: 'maria.oliveira@email.com',
@@ -66,8 +79,10 @@ async function main() {
       },
     })
 
-    const segurado3 = await prisma.insured.create({
-      data: {
+    const segurado3 = await prisma.insured.upsert({
+      where: { email: 'carlos.lima@email.com' },
+      update: {},
+      create: {
         name: 'Carlos Eduardo Lima',
         phone: '5511765432109',
         email: 'carlos.lima@email.com',
@@ -80,9 +95,10 @@ async function main() {
       },
     })
 
-    // Adicionar mais segurados para testes
-    const segurado4 = await prisma.insured.create({
-      data: {
+    const segurado4 = await prisma.insured.upsert({
+      where: { email: 'ana.martins@email.com' },
+      update: {},
+      create: {
         name: 'Ana Paula Martins',
         phone: '5511654321098',
         email: 'ana.martins@email.com',
@@ -97,9 +113,11 @@ async function main() {
 
     console.log('👤 Insureds created')
 
-    // Create claims with different statuses and priorities
-    const claim1 = await prisma.claim.create({
-      data: {
+    // Create claims using UPSERT to avoid duplicates
+    const claim1 = await prisma.claim.upsert({
+      where: { number: 'SIN2025001' },
+      update: {},
+      create: {
         number: 'SIN2025001',
         type: ClaimType.AUTO_SIMPLES,
         classification: ClaimClassification.VERDE,
@@ -113,8 +131,10 @@ async function main() {
       },
     })
 
-    const claim2 = await prisma.claim.create({
-      data: {
+    const claim2 = await prisma.claim.upsert({
+      where: { number: 'SIN2025002' },
+      update: {},
+      create: {
         number: 'SIN2025002',
         type: ClaimType.AUTO_SIMPLES,
         classification: ClaimClassification.AMARELO,
@@ -130,8 +150,10 @@ async function main() {
 
     // Create claim that should appear in D+1 (26h ago)
     const twentySixHoursAgo = new Date(Date.now() - 26 * 60 * 60 * 1000)
-    const claim3 = await prisma.claim.create({
-      data: {
+    const claim3 = await prisma.claim.upsert({
+      where: { number: 'SIN2025003' },
+      update: {},
+      create: {
         number: 'SIN2025003',
         type: ClaimType.AUTO_SIMPLES,
         classification: ClaimClassification.VERMELHO,
@@ -148,8 +170,10 @@ async function main() {
     })
 
     // Claim já concluído
-    const claim4 = await prisma.claim.create({
-      data: {
+    const claim4 = await prisma.claim.upsert({
+      where: { number: 'SIN2025004' },
+      update: {},
+      create: {
         number: 'SIN2025004',
         type: ClaimType.AUTO_SIMPLES,
         classification: ClaimClassification.VERDE,
@@ -165,6 +189,15 @@ async function main() {
     })
 
     console.log('📄 Claims created')
+
+    // Clear existing documents for these claims to avoid duplicates
+    await prisma.document.deleteMany({
+      where: {
+        claimId: {
+          in: [claim1.id, claim2.id, claim3.id, claim4.id]
+        }
+      }
+    })
 
     // Create documents (checklist items) with varied status
     const checklistItems: DocumentItem[] = ['CNH', 'DOC_VEICULO', 'BO']
@@ -272,6 +305,15 @@ async function main() {
 
     console.log('📋 Checklist documents created')
 
+    // Clear existing events for these claims
+    await prisma.event.deleteMany({
+      where: {
+        claimId: {
+          in: [claim1.id, claim2.id, claim3.id, claim4.id]
+        }
+      }
+    })
+
     // Create comprehensive sample events
     await prisma.event.create({
       data: {
@@ -337,9 +379,19 @@ async function main() {
 
     console.log('📞 Events created')
 
-    // Create system configurations
-    await prisma.systemConfig.create({
-      data: {
+    // Create system configurations using UPSERT
+    await prisma.systemConfig.upsert({
+      where: { key: 'whatsapp_config' },
+      update: {
+        value: JSON.stringify({
+          token: 'FAKE_TOKEN_FOR_DEMO',
+          phoneNumberId: '123456789',
+          webhookVerifyToken: 'verify_token_demo'
+        }),
+        description: 'Configuração do WhatsApp Business API',
+        isActive: true,
+      },
+      create: {
         key: 'whatsapp_config',
         value: JSON.stringify({
           token: 'FAKE_TOKEN_FOR_DEMO',
@@ -351,8 +403,19 @@ async function main() {
       },
     })
 
-    await prisma.systemConfig.create({
-      data: {
+    await prisma.systemConfig.upsert({
+      where: { key: 'email_config' },
+      update: {
+        value: JSON.stringify({
+          smtp_host: 'smtp.gmail.com',
+          smtp_port: 587,
+          smtp_user: 'noreply@csi.local',
+          from_name: 'CSI Seguros'
+        }),
+        description: 'Configuração do servidor de email',
+        isActive: true,
+      },
+      create: {
         key: 'email_config',
         value: JSON.stringify({
           smtp_host: 'smtp.gmail.com',
@@ -366,6 +429,17 @@ async function main() {
     })
 
     console.log('⚙️ System configurations created')
+
+    // Clear existing audit logs for these entities
+    await prisma.auditLog.deleteMany({
+      where: {
+        OR: [
+          { entityId: supervisor.id, entity: 'user' },
+          { entityId: regulador.id, entity: 'user' },
+          { entityId: claim1.id, entity: 'claim' }
+        ]
+      }
+    })
 
     // Create some audit logs for demonstration
     await prisma.auditLog.create({
@@ -407,32 +481,4 @@ async function main() {
     console.log(`- Insureds: ${(await prisma.insured.count())} created`)
     console.log(`- Claims: ${(await prisma.claim.count())} created`)
     console.log(`- Documents: ${(await prisma.document.count())} created`)
-    console.log(`- Events: ${(await prisma.event.count())} created`)
-    console.log(`- System Configs: ${(await prisma.systemConfig.count())} created`)
-    console.log(`- Audit Logs: ${(await prisma.auditLog.count())} created`)
-
-    console.log('\n🔑 Test Accounts:')
-    console.log('- Regulador: regulador@csi.local / csi123')
-    console.log('- Supervisor: supervisor@csi.local / csi123')
-    console.log('\n🔒 Board Access: admin / 123')
-
-  } catch (error) {
-    console.error('❌ Error during seeding:', error)
-    throw error
-  }
-}
-
-// Export the main function for use in other scripts
-export { main }
-
-// Run only if this script is executed directly
-if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error('❌ Seeding failed:', e)
-      process.exit(1)
-    })
-    .finally(async () => {
-      await prisma.$disconnect()
-    })
-}
+    console.log(`- Events: ${(await prisma.event.count()
