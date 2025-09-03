@@ -1,9 +1,7 @@
-
 // Schema otimizado para deploy no Render
 generator client {
     provider = "prisma-client-js"
-    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
-    output = "/home/ubuntu/csi_kanban_mvp/app/node_modules/.prisma/client"
+    binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -338,5 +336,3 @@ model AuditLog {
   @@index([createdAt])
   @@map(name: "audit_logs")
 }
-
-
