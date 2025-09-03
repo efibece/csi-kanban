@@ -1,4 +1,3 @@
-
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { PrismaClient } from '@prisma/client'
@@ -102,31 +101,71 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
+        // Remover domain específico para evitar problemas
         domain: process.env.NODE_ENV === 'production' 
-          ? '.onrender.com' 
+          ? undefined  // Deixar o browser gerenciar automaticamente
           : undefined,
       },
     },
   },
   callbacks: {
+    // NOVO: Callback de redirect para gerenciar redirecionamentos
+    async redirect({ url, baseUrl }) {
+      console.log('Redirect callback - URL:', url, 'BaseURL:', baseUrl)
+      
+      // Se é uma URL relativa, usar baseUrl
+      if (url.startsWith("/")) {
+        const redirectUrl = `${baseUrl}${url}`
+        console.log('Redirecting to relative URL:', redirectUrl)
+        return redirectUrl
+      }
+      
+      // Se a URL é da mesma origem, permitir
+      if (new URL(url).origin === baseUrl) {
+        console.log('Redirecting to same origin:', url)
+        return url
+      }
+      
+      // Default: redirecionar para profile
+      const defaultUrl = `${baseUrl}/profile`
+      console.log('Redirecting to default profile:', defaultUrl)
+      return defaultUrl
+    },
+    
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
         token.email = user.email
         token.name = user.name
         token.isSupervisor = (user as any).isSupervisor
+        console.log('JWT callback - User logged in:', user.email)
       }
       return token
     },
+    
     async session({ session, token }) {
       if (token && session?.user) {
         session.user.id = token.id as string
         session.user.email = token.email as string
         session.user.name = token.name as string
         session.user.isSupervisor = token.isSupervisor as boolean
+        console.log('Session callback - Session created for:', session.user.email)
       }
       return session
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // Configurações adicionais para debug
+  debug: process.env.NODE_ENV === 'development',
+  logger: {
+    error(code, metadata) {
+      console.error('NextAuth Error:', code, metadata)
+    },
+    warn(code) {
+      console.warn('NextAuth Warning:', code)
+    },
+    debug(code, metadata) {
+      console.log('NextAuth Debug:', code, metadata)
+    }
+  }
 }
