@@ -101,34 +101,52 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // Remover domain específico para evitar problemas
-        domain: process.env.NODE_ENV === 'production' 
-          ? undefined  // Deixar o browser gerenciar automaticamente
-          : undefined,
+        domain: undefined, // Let browser handle automatically
       },
     },
   },
   callbacks: {
-    // NOVO: Callback de redirect para gerenciar redirecionamentos
+    // CORRIGIDO: Callback de redirect que evita loop infinito
     async redirect({ url, baseUrl }) {
-      console.log('Redirect callback - URL:', url, 'BaseURL:', baseUrl)
+      console.log('🔄 Redirect callback - URL:', url, 'BaseURL:', baseUrl)
       
-      // Se é uma URL relativa, usar baseUrl
-      if (url.startsWith("/")) {
+      // Se contém callbackUrl=%2F (que é /), redirecionar para profile
+      if (url.includes('callbackUrl=%2F') || url.includes('callbackUrl=/')) {
+        const profileUrl = `${baseUrl}/profile`
+        console.log('✅ Redirecting from root callback to profile:', profileUrl)
+        return profileUrl
+      }
+      
+      // Se é /login ou /login com query params, redirecionar para profile (evitar loop)
+      if (url === `${baseUrl}/login` || url.startsWith(`${baseUrl}/login?`)) {
+        const profileUrl = `${baseUrl}/profile`
+        console.log('✅ Redirecting from login to profile (avoiding loop):', profileUrl)
+        return profileUrl
+      }
+      
+      // Se é uma URL relativa que não é login
+      if (url.startsWith("/") && !url.startsWith("/login")) {
         const redirectUrl = `${baseUrl}${url}`
-        console.log('Redirecting to relative URL:', redirectUrl)
+        console.log('✅ Redirecting to relative URL:', redirectUrl)
         return redirectUrl
       }
       
-      // Se a URL é da mesma origem, permitir
-      if (new URL(url).origin === baseUrl) {
-        console.log('Redirecting to same origin:', url)
+      // Se é uma URL relativa que é login, redirecionar para profile
+      if (url.startsWith("/login")) {
+        const profileUrl = `${baseUrl}/profile`
+        console.log('✅ Redirecting from relative login to profile:', profileUrl)
+        return profileUrl
+      }
+      
+      // Se a URL é da mesma origem e não é login
+      if (new URL(url).origin === baseUrl && !url.includes('/login')) {
+        console.log('✅ Redirecting to same origin (not login):', url)
         return url
       }
       
-      // Default: redirecionar para profile
+      // Default: sempre redirecionar para profile
       const defaultUrl = `${baseUrl}/profile`
-      console.log('Redirecting to default profile:', defaultUrl)
+      console.log('✅ Redirecting to default profile:', defaultUrl)
       return defaultUrl
     },
     
@@ -138,7 +156,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email
         token.name = user.name
         token.isSupervisor = (user as any).isSupervisor
-        console.log('JWT callback - User logged in:', user.email)
+        console.log('🔑 JWT callback - User logged in:', user.email)
       }
       return token
     },
@@ -149,7 +167,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string
         session.user.name = token.name as string
         session.user.isSupervisor = token.isSupervisor as boolean
-        console.log('Session callback - Session created for:', session.user.email)
+        console.log('👤 Session callback - Session created for:', session.user.email)
       }
       return session
     },
@@ -159,13 +177,13 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
   logger: {
     error(code, metadata) {
-      console.error('NextAuth Error:', code, metadata)
+      console.error('❌ NextAuth Error:', code, metadata)
     },
     warn(code) {
-      console.warn('NextAuth Warning:', code)
+      console.warn('⚠️  NextAuth Warning:', code)
     },
     debug(code, metadata) {
-      console.log('NextAuth Debug:', code, metadata)
+      console.log('🐛 NextAuth Debug:', code, metadata)
     }
   }
 }
