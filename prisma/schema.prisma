@@ -1,0 +1,244 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/whatsapp_mini_crm/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          String    @default("user") // user, admin, owner
+  workspaceId   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
+  ownedWorkspaces Workspace[] @relation("WorkspaceOwner")
+  deals         Deal[]    @relation("DealOwner")
+  notes         Note[]
+  activities    Activity[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  owner              User               @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  users              User[]
+  whatsappSessions   WhatsAppSession[]
+  contacts           Contact[]
+  conversations      Conversation[]
+  deals              Deal[]
+  activities         Activity[]
+  kanbanColumns      KanbanColumn[]
+
+  @@map("workspaces")
+}
+
+model WhatsAppSession {
+  id               String    @id @default(cuid())
+  sessionName      String
+  phoneNumber      String?
+  status           String    @default("disconnected") // disconnected, connecting, connected, error
+  qrCode           String?   @db.Text
+  sessionData      String?   @db.Text // Encrypted session data for persistence
+  lastConnectedAt  DateTime?
+  workspaceId      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sessionName])
+  @@map("whatsapp_sessions")
+}
+
+model Contact {
+  id             String   @id @default(cuid())
+  phoneNumber    String
+  name           String?
+  profilePicUrl  String?
+  workspaceId    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations  Conversation[]
+  dealContacts   DealContact[]
+
+  @@unique([workspaceId, phoneNumber])
+  @@map("contacts")
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  contactId     String
+  workspaceId   String
+  lastMessageAt DateTime?
+  unreadCount   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  contact   Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@unique([workspaceId, contactId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  messageId      String   // WhatsApp message ID
+  fromMe         Boolean
+  senderPhone    String
+  textContent    String?  // Encrypted text content
+  hasMedia       Boolean  @default(false)
+  mediaType      String?  // image, video, audio, document, etc.
+  mediaCaption   String?  // Encrypted caption for media messages
+  mediaFileName  String?  // Original file name for documents
+  timestamp      DateTime
+  status         String?  // sent, delivered, read
+  createdAt      DateTime @default(now())
+  
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, messageId])
+  @@map("messages")
+}
+
+model Deal {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?  @db.Text
+  value           Float?
+  status          String   @default("open") // open, won, lost
+  ownerId         String
+  workspaceId     String
+  kanbanColumnId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  owner         User           @relation("DealOwner", fields: [ownerId], references: [id])
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  kanbanColumn  KanbanColumn?  @relation(fields: [kanbanColumnId], references: [id], onDelete: SetNull)
+  dealContacts  DealContact[]
+  notes         Note[]
+  activities    Activity[]
+
+  @@map("deals")
+}
+
+model DealContact {
+  id        String   @id @default(cuid())
+  dealId    String
+  contactId String
+  createdAt DateTime @default(now())
+  
+  deal    Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, contactId])
+  @@map("deal_contacts")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  dealId    String
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@map("notes")
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  subject     String
+  completed   Boolean  @default(false)
+  dueDate     DateTime?
+  notes       String?  @db.Text
+  dealId      String
+  createdById String
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
+}
+
+model KanbanColumn {
+  id          String   @id @default(cuid())
+  name        String
+  color       String   // Hex color code
+  position    Int      // Order of columns
+  isDefault   Boolean  @default(false) // Default column that cannot be deleted
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deals     Deal[]
+
+  @@unique([workspaceId, position])
+  @@map("kanban_columns")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
